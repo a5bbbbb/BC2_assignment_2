@@ -9,6 +9,22 @@ use solana_sdk::{
 use std::fs::File;
 use std::str::FromStr;
 use std::io::Read;
+use std::env;
+use std::path;
+use std::fs;
+use serde_json;
+fn load_default_keypair() -> Keypair {
+    let home_path = env::var_os("HOME").unwrap();
+    let default_keypair_path = ".config/solana/id.json"; // ! update if you want to use a different path
+    let default_keypair_path = path::PathBuf::from(home_path).join(default_keypair_path);
+
+    let keypair_file = fs::read_to_string(default_keypair_path).unwrap();
+    let keypair_bytes: Vec<u8> = serde_json::from_str(&keypair_file).unwrap();
+    let default_keypair = Keypair::from_bytes(&keypair_bytes).unwrap();
+    println!("loaded keypair address -> {:?}", default_keypair.pubkey()); // ! debug
+
+    default_keypair
+}
 #[tokio::main]
 async fn main() {
     // Program ID (replace with your actual program ID)
@@ -19,22 +35,7 @@ async fn main() {
     let client = RpcClient::new_with_commitment(rpc_url, CommitmentConfig::confirmed());
 
     // Generate a new keypair for the payer
-    let payer = Keypair::new();
-
-    // Request airdrop
-    let airdrop_amount = 1_000_000_000; // 1 SOL
-    let signature = client
-        .request_airdrop(&payer.pubkey(), airdrop_amount)
-        .expect("Failed to request airdrop");
-
-    // Wait for airdrop confirmation
-    loop {
-        let confirmed = client.confirm_transaction(&signature).unwrap();
-        if confirmed {
-            break;
-        }
-    }
-
+    let payer = load_default_keypair();
     // Create the instruction
     let instruction = Instruction::new_with_borsh(
         program_id,
